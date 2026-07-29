@@ -33,12 +33,19 @@ async function parseResponse(res) {
 }
 
 export async function createShortUrl(originalUrl) {
-    const res = await fetchWithTimeout(`${API_BASE}/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ originalUrl }),
-    });
-    return parseResponse(res);
+    try {
+        const res = await fetchWithTimeout(`${API_BASE}/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ originalUrl }),
+        });
+        return parseResponse(res);
+    } catch (err) {
+        if (err instanceof TypeError) {
+            throw new Error('Failed to create link. The server could not be reached.', { cause: err });
+        }
+        throw err;
+    }
 }
 
 export async function getAnalytics(shortId) {
@@ -49,6 +56,23 @@ export async function getAnalytics(shortId) {
 export async function getMyLinks() {
     const res = await fetchWithTimeout(`${API_BASE}/links`);
     return parseResponse(res);
+}
+
+export async function deleteLink(shortId) {
+    try {
+        const res = await fetchWithTimeout(`${API_BASE}/${encodeURIComponent(shortId)}`, {
+            method: 'DELETE',
+        });
+        return parseResponse(res);
+    } catch (err) {
+        // The generic "Failed to fetch" is a TypeError.
+        // This will catch network errors, like the server being down.
+        if (err instanceof TypeError) {
+            throw new Error('Deletion failed. The server could not be reached.', {cause: err});
+        }
+        // Re-throw other errors (like timeouts or specific errors from the server)
+        throw err;
+    }
 }
 
 export function shortUrlFor(shortId) {

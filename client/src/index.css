@@ -7,7 +7,7 @@
   --line: #d3cebf;
   --stamp: #0b6e4f;
   --stamp-soft: #e3efe9;
-  --cancel: #b8402c;
+  --cancel: #c82c28;
   --cancel-soft: #f5e6e1;
 
   --display: 'Space Grotesk', system-ui, sans-serif;
@@ -280,6 +280,18 @@ main {
   color: var(--ink);
 }
 
+.btn-danger {
+  background: var(--cancel);
+  color: var(--paper-raised);
+  border-color: var(--cancel);
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.btn-cancel {
+  border-radius: 5px;
+}
+
 .form-error {
   margin-top: 12px;
   text-align: left;
@@ -452,6 +464,82 @@ main {
   border-radius: 6px;
   padding: 28px 26px;
   margin-bottom: 24px;
+  position: relative;
+}
+
+.card-icon-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.card-icon-btn:hover {
+  color: var(--cancel);
+  border-color: var(--cancel);
+  background: var(--cancel-soft);
+}
+
+.popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  /* transparent — its only job is to catch outside clicks and close the popover */
+}
+
+.delete-popover {
+  position: absolute;
+  top: 54px;
+  right: 16px;
+  width: 280px;
+  background: var(--paper-raised);
+  border: 1.5px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: 0 8px 20px rgba(32, 28, 23, 0.15);
+  padding: 8px 16px;
+  z-index: 30;
+}
+
+.confirm-deletion {
+  display: flex;
+  align-items: center;
+  height: 2.5rem;
+  gap: 5px;
+}
+
+.confirm-deletion p {
+  font-weight: 800;
+}
+
+.delete-popover-text {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.delete-popover-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.delete-popover-actions .btn {
+  padding: 9px 14px;
+  font-size: 0.8rem;
+}
+
+.delete-popover .form-error {
+  margin-top: 12px;
 }
 
 .big-number {
