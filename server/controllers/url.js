@@ -1,7 +1,15 @@
 const { nanoid } = require('nanoid');
 const URL = require('../models/url');
+const Visit = require('../models/visit');
 const { shortenSchema } = require('../validators/url');
 const { isSafeUrl } = require('../utils/validateUrl');
+const urlCache = require('../utils/urlCache');
+const logger = require('../config/logger');
+const { success } = require('zod');
+
+const MAX_ANALYTICS_LIMIT = 100;
+const DEFAULT_ANALYTICS_LIMIT = 25;
+const DAILY_BUCKET_WINDOW_DAYS = 14;
 
 async function handleGenerateShortUrl(req, res) {
     const parseResult = shortenSchema.safeParse(req.body);
@@ -25,7 +33,6 @@ async function handleGenerateShortUrl(req, res) {
             shortId: shortId,
             redirectUrl: originalUrl,
             ownerId,
-            visitHistory: [],
         });
     
         return res.json({ id: shortId });
@@ -37,7 +44,6 @@ async function handleGenerateShortUrl(req, res) {
                 shortId: retryId,
                 redirectUrl: originalUrl,
                 ownerId,
-                visitHistory: [],
             });
             return res.json({ id: retryId });
         }
@@ -46,46 +52,105 @@ async function handleGenerateShortUrl(req, res) {
 }
 
 async function handleGetAnalytics(req, res) {
-    const shortId = req.params.shortId;
-    
-    const result = await URL.findOne({ shortId });
-    if (!result) return res.status(404).json({ error: 'Short URL not found' });
+    const { shortId } = req.params;
+
+    // clamp limit so a client can't request an unbounded page size
+    const limit = Math.min(
+        Math.max(parseInt(req.query.limit, 10) || DEFAULT_ANALYTICS_LIMIT, 1),
+        MAX_ANALYTICS_LIMIT
+    );
+
+    const before = req.query.before ? new Date(req.query.before) : null;
+    if (before && Number.isNaN(before.getTime())) {
+        return res.status(400).json({ error: 'Invalid "before" cursor' });
+    }
+
+    const result = await URL.findOne({ shortId }).select('ownerId clickCount');
+    if (!result) {
+        return res.status(404).json({ error: 'Short URL not found' });
+    }
 
     if (result.ownerId.toString() !== req.user.id) {
         return res.status(403).json({ error: 'You do not have access to this link' });
     }
 
-    return res.json({ 
-        totalClicks: result.visitHistory.length, 
-        analytics: result.visitHistory,
-    }); 
+    const visitQuery = { shortId };
+    if (before) {
+        visitQuery.timestamp = { $lt: before };
+    }
+
+    const page = await Visit.find(visitQuery)
+        .sort({ timestamp: -1 })
+        .limit(limit + 1) // fetch one extra to detect whether there's a next page
+        .select('timestamp -_id');
+
+    const hasMore = page.length > limit;
+    const visits = page.slice(0, limit).map((v) => ({ timestamp: v.timestamp.getTime() }));
+    const nextCursor = hasMore ? page[limit - 1].timestamp.toISOString() : null;
+
+    const windowStart = new Date(Date.now() - DAILY_BUCKET_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const dailyBucketsRaw = await Visit.aggregate([
+        { $match: { shortId, timestamp: { $gte: windowStart } } },
+        {
+            $group: {
+                _id: { $dateTrunc: { date: '$timestamp', unit: 'day' } },
+                count: { $sum: 1 },
+            },
+        },
+        { $sort: { _id: 1 } },
+    ]);
+    const dailyBuckets = dailyBucketsRaw.map((b) => ({
+        date: b._id.toISOString(),
+        count: b.count,
+    }));
+
+    return res.json({
+        totalClicks: result.clickCount || 0,
+        dailyBuckets,
+        visits,
+        nextCursor,
+    });
+}
+
+function logVisitAsync(shortId) {
+    Promise.all([
+        Visit.create({ shortId, timestamp: new Date() }),
+        URL.updateOne({ shortId }, { $inc: { clickCount: 1 } }),
+    ]).catch((err) => {
+        logger.error({ err, shortId }, 'Failed to log visit');
+    })
 }
 
 async function handleRedirect(req, res) {
     const { shortId } = req.params;
 
-    const url = await URL.findOneAndUpdate(
-        { shortId },
-        { $push: { visitHistory: { timestamp: Date.now() } } },
-        { new: true }
-    );
+    const cacheUrl = urlCache.get(shortId);
+    if (cacheUrl) {
+        res.redirect(cacheUrl);
+        logVisitAsync(shortId);
+        return;
+    }
+
+    const url = await URL.findOne({ shortId }).select('redirectUrl');
 
     if (!url) return res.status(404).json({ error: 'Short URL not found' });
 
-    return res.redirect(url.redirectUrl);
+    urlCache.set(shortId, url.redirectUrl);
+    res.redirect(url.redirectUrl);
+    logVisitAsync(shortId);
 }
 
 async function handleListMyLinks(req, res) {
     const links = await URL.find({ ownerId: req.user.id })
         .sort({ createdAt: -1 })
-        .select('shortId redirectUrl createdAt visitHistory');
+        .select('shortId redirectUrl createdAt clickCount');
 
     return res.json({
         links: links.map((link) => ({
             shortId: link.shortId,
             redirectUrl: link.redirectUrl,
             createdAt: link.createdAt,
-            totalClicks: link.visitHistory.length,
+            totalClicks: link.clickCount || 0,
         })),
     });
 }
@@ -97,6 +162,14 @@ async function handleDeleteUrl(req, res) {
 
     if (!deletedDoc) {
         return res.status(404).json({ error: 'Short URL not found' });
+    }
+
+    urlCache.delete(shortId);
+
+    try {
+        await Visit.deleteMany({ shortId });
+    } catch (err) {
+        logger.error({ err, shortId }, 'Failed to clean up visit records after URL deletion');
     }
 
     return res.json({ success: true });

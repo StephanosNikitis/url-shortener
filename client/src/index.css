@@ -167,7 +167,7 @@ input:focus-visible {
 }
 
 .avatar-dropdown-item:hover {
-  background: rgb(244, 100, 100);
+  background: var(--cancel);
   color: white;
 }
 
@@ -281,6 +281,12 @@ main {
 }
 
 .btn-danger {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 0.92rem;
+  border: 1.5px solid var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
   background: var(--cancel);
   color: var(--paper-raised);
   border-color: var(--cancel);

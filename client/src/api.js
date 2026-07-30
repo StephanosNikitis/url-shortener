@@ -48,8 +48,13 @@ export async function createShortUrl(originalUrl) {
     }
 }
 
-export async function getAnalytics(shortId) {
-    const res = await fetchWithTimeout(`${API_BASE}/analytics/${encodeURIComponent(shortId)}`);
+export async function getAnalytics(shortId, { limit, before } = {}) {
+    const params = new URLSearchParams();
+    if (limit) params.set('limit', limit);
+    if (before) params.set('before', before);
+    const query = params.toString() ? `?${params.toString()}` : '';
+
+    const res = await fetchWithTimeout(`${API_BASE}/analytics/${encodeURIComponent(shortId)}${query}`);
     return parseResponse(res);
 }
 

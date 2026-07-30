@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const { maxLength } = require('zod');
 
 const urlSchema = new mongoose.Schema(
     {
@@ -20,10 +19,11 @@ const urlSchema = new mongoose.Schema(
             required: true,
             index: true,
         },
-        visitHistory: [{
-            timestamp: { type: Number },
-            _id: false,
-        }],
+        clickCount: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
     }, 
     { timestamps: true }
 );

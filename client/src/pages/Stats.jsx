@@ -2,17 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAnalytics, deleteLink, shortUrlFor } from '../api.js';
 
-function bucketByDay(visits) {
-    const buckets = new Map();
-
-    for (const visit of visits) {
-        const date = new Date(visit.timestamp);
-        const key = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        buckets.set(key, (buckets.get(key) || 0) + 1);
-    }
-
-    // keep chronological order and cap to the last 14 days of activity shown
-    return Array.from(buckets.entries()).slice(-14);
+function formatDayLabel(isoDate) {
+    return new Date(isoDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 export default function Stats() {
@@ -20,16 +11,24 @@ export default function Stats() {
     const navigate = useNavigate();
 
     const [lookupValue, setLookupValue] = useState(shortId || '');
-    const [data, setData] = useState(null);
+
+    const [summary, setSummary] = useState(null);
+    const [visits, setVisits] = useState([]);
+    const [nextCursor, setNextCursor] = useState(null);
+
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState(''); 
     const [confirmOpen, setConfirmOpen] = useState(false);
 
     useEffect(() => {
         if (!shortId) {
-            setData(null);
+            setSummary(null);
+            setVisits([]);
+            setNextCursor(null);
             return;
         }
 
@@ -39,12 +38,17 @@ export default function Stats() {
 
         getAnalytics(shortId)
             .then((result) => {
-                if (!cancelled) setData(result);
+                if (cancelled) return;
+                setSummary({ totalClicks: result.totalClicks, dailyBuckets: result.dailyBuckets });
+                setVisits(result.visits);
+                setNextCursor(result.nextCursor);
             })
             .catch((err) => {
                 if (!cancelled) {
                     setError(err.message);
-                    setData(null);
+                    setSummary(null);
+                    setVisits([]);
+                    setNextCursor(null);
                 }
             })
             .finally(() => {
@@ -62,6 +66,20 @@ export default function Stats() {
         if (trimmed) navigate(`/stats/${trimmed}`);
     }
 
+    async function handleLoadMore() {
+        if (!nextCursor) return;
+        setLoadingMore(true);
+        try {
+            const result = await getAnalytics(shortId, { before: nextCursor });
+            setVisits((prev) => [...prev, ...result.visits]);
+            setNextCursor(result.nextCursor);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoadingMore(false);
+        }
+    }
+
     async function confirmDelete() {
         setDeleting(true);
         setDeleteError('');
@@ -74,9 +92,8 @@ export default function Stats() {
         }
     }
 
-    const bars = data ? bucketByDay(data.analytics) : [];
-    const maxCount = Math.max(1, ...bars.map(([, count]) => count));
-    const recentVisits = data ? [...data.analytics].reverse().slice(0, 25) : [];
+    const bars = summary?.dailyBuckets || [];
+    const maxCount = Math.max(1, ...bars.map((b) => b.count));
 
     return (
         <div className="stats-page">
@@ -103,7 +120,7 @@ export default function Stats() {
             {loading && <p className="status-line">Fetching activity…</p>}
             {error && <p className="status-line error">{error}</p>}
 
-            {data && (
+            {summary && (
                 <>
                     <div className="big-number-card">
                         <button
@@ -128,7 +145,7 @@ export default function Stats() {
                                         <p>Confirm Deletion</p>
                                     </div>
                                     <p className="delete-popover-text">
-                                        Deleting this link will <strong>permanently</strong> remove its {data.totalClicks} redemption{data.totalClicks !== 1 ? 's' : ''}.
+                                        Deleting this link will <strong>permanently</strong> remove its {summary.totalClicks} redemption{summary.totalClicks !== 1 ? 's' : ''}.
                                     </p>
                                     <div className="delete-popover-actions">
                                         <button
@@ -141,7 +158,7 @@ export default function Stats() {
                                         </button>
                                         <button
                                             type="button"
-                                            className="btn btn-danger"
+                                            className="btn-danger"
                                             onClick={confirmDelete}
                                             disabled={deleting}
                                         >
@@ -154,7 +171,7 @@ export default function Stats() {
                         )}
 
                         <div className="big-number">
-                            {data.totalClicks}
+                            {summary.totalClicks}
                         </div>
                         <div className="big-number-label">
                             Total redemptions
@@ -166,16 +183,16 @@ export default function Stats() {
 
                     {bars.length > 0 && (
                         <div className="chart-card">
-                            <div className="chart-title">Redemptions per day</div>
+                            <div className="chart-title">Redemptions per day (last 14 days)</div>
                             <div className="bars">
-                                {bars.map(([date, count]) => (
-                                    <div className="bar-col" key={date}>
+                                {bars.map((b) => (
+                                    <div className="bar-col" key={b.date}>
                                         <div
                                             className="bar"
-                                            style={{ height: `${(count / maxCount) * 100}%` }}
-                                            title={`${count} on ${date}`}
+                                            style={{ height: `${(b.count / maxCount) * 100}%` }}
+                                            title={`${b.count} on ${formatDayLabel(b.date)}`}
                                         />
-                                        <span className="bar-date">{date}</span>
+                                        <span className="bar-date">{formatDayLabel(b.date)}</span>
                                     </div>
                                 ))}
                             </div>
@@ -184,17 +201,30 @@ export default function Stats() {
 
                     <div className="visit-log">
                         <div className="visit-log-title">
-                            Recent redemptions {data.analytics.length > 25 && '(latest 25)'}
+                            Recent redemptions
                         </div>
-                        {recentVisits.length === 0 ? (
+                        {visits.length === 0 ? (
                             <div className="empty-state">No redemptions yet. Share the link to see activity here.</div>
                         ) : (
-                            recentVisits.map((visit, i) => (
-                                <div className="visit-row" key={visit.timestamp + '-' + i}>
-                                    <span className="visit-index">#{data.analytics.length - i}</span>
-                                    <span>{new Date(visit.timestamp).toLocaleString()}</span>
-                                </div>
-                            ))
+                            <>
+                                {visits.map((visit, i) => (
+                                    <div className="visit-row" key={visit.timestamp + '-' + i}>
+                                        <span className="visit-index">#{visits.length - i}</span>
+                                        <span>{new Date(visit.timestamp).toLocaleString()}</span>
+                                    </div>
+                                ))}
+                                {nextCursor && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost"
+                                        onClick={handleLoadMore}
+                                        disabled={loadingMore}
+                                        style={{ width: '100%', borderRadius: 0, borderTop: '1px solid var(--line)' }}
+                                    >
+                                        {loadingMore ? 'Loading…' : 'Load more'}
+                                    </button>
+                                )}
+                            </>
                         )}
                     </div>
                 </>

@@ -15,6 +15,7 @@ const urlRoute = require('./routes/url');
 const authRoutes = require('./routes/auth');
 const oauthRoutes = require('./routes/oauth');
 const errorHandler = require('./middleware/errorHandler');
+const Visit = require('./models/visit');
 
 const PORT = process.env.PORT || 5000;
 
@@ -22,11 +23,20 @@ async function main() {
     await connectToMongoDB(process.env.MONGO_URI);
     logger.info('MongoDB connected');
 
+    try {
+        await Visit.createCollection();
+        logger.info('Visit time series collection ready');
+    } catch (err) {
+        // code 48 = NamespaceExists. Expected on every restart after the first one, since the collection already exists by then.
+        if (err.code !== 48) {
+            throw err;
+        }
+    }
+
     const app = express();
 
-    // Trust the first proxy hop (Render/Railway/Nginx/etc). Required for req.ip
-    // (used by express-rate-limit) to reflect the real client IP instead of the
-    // proxy's IP. Adjust the number if you sit behind more than one hop.
+    // Trust the first proxy hop (Render/Railway/Nginx/etc). Required for req.ip (used by express-rate-limit) to reflect the real client IP instead of the proxy's IP.
+    // Adjust the number if we sit behind more than one hop.
     app.set('trust proxy', 1);
     app.use(helmet({ hsts: process.env.NODE_ENV === 'production' }));
     app.use(pinoHttp({ logger }));
