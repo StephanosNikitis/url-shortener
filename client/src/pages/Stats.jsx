@@ -65,6 +65,45 @@ export default function Stats() {
         };
     }, [shortId]);
 
+    useEffect(() => {
+        if (!shortId) return;
+
+        let cancelled = false;
+        let intervalId;
+
+        async function poll() {
+            try {
+                if (cancelled) return;
+                const result = await getAnalytics(shortId);
+                setSummary({ totalClicks: result.totalClicks, dailyBuckets: result.dailyBuckets });
+                setVisits((prev) => {
+                    const newestKnown = prev[0]?.timestamp;
+                    const freshOnes = newestKnown ? result.visits.filter((v) => v.timestamp > newestKnown) : result.visits;
+                    return freshOnes.length > 0 ? [...freshOnes, ...prev] : prev;
+                });
+            } catch {
+                // a background refresh failing silently is fine
+            }
+        } 
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                clearInterval(intervalId);
+            } else {
+                poll();
+                intervalId = setInterval(poll, 30000);
+            }
+        }
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        handleVisibilityChange(); // run on mount to start polling if visible
+
+        return () => {
+            cancelled = true;
+            clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [shortId]);
+
     function handleLookup(e) {
         e.preventDefault();
         const trimmed = lookupValue.trim();

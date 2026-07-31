@@ -11,6 +11,11 @@ const MAX_ANALYTICS_LIMIT = 100;
 const DEFAULT_ANALYTICS_LIMIT = 25;
 const DAILY_BUCKET_WINDOW_DAYS = 14;
 
+function isPrefetchRequest(req) {
+    const purpose = (req.headers['sec-purpose'] || req.headers['purpose'] || '').toLowerCase();
+    return purpose.includes('prefetch') || purpose.includes('preview');
+}
+
 async function handleGenerateShortUrl(req, res) {
     const parseResult = shortenSchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -127,7 +132,9 @@ async function handleRedirect(req, res) {
     const cacheUrl = urlCache.get(shortId);
     if (cacheUrl) {
         res.redirect(cacheUrl);
-        logVisitAsync(shortId);
+        if (!isPrefetchRequest(req)) {
+            logVisitAsync(shortId);
+        }
         return;
     }
 
@@ -137,7 +144,9 @@ async function handleRedirect(req, res) {
 
     urlCache.set(shortId, url.redirectUrl);
     res.redirect(url.redirectUrl);
-    logVisitAsync(shortId);
+    if (!isPrefetchRequest(req)) {
+        logVisitAsync(shortId);
+    }
 }
 
 async function handleListMyLinks(req, res) {
