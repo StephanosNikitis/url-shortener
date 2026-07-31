@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getAnalytics, deleteLink, shortUrlFor } from '../api.js';
+import { getAnalytics, deleteLink, renameLink, shortUrlFor } from '../api.js';
 
 function formatDayLabel(isoDate) {
     return new Date(isoDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -23,6 +23,11 @@ export default function Stats() {
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState(''); 
     const [confirmOpen, setConfirmOpen] = useState(false);
+
+    const [editingId, setEditingId] = useState(false);
+    const [newShortIdValue, setNewShortIdValue] = useState('');
+    const [renaming, setRenaming] = useState(false);
+    const [renameError, setRenameError] = useState('');
 
     useEffect(() => {
         if (!shortId) {
@@ -92,6 +97,39 @@ export default function Stats() {
         }
     }
 
+    function startEditingId() {
+        setNewShortIdValue(shortId);
+        setRenameError('');
+        setEditingId(true);
+    }
+
+    function cancelEditingId() {
+        setEditingId(false);
+        setRenameError('');
+    }
+
+    async function submitRename(e) {
+        e.preventDefault();
+        const trimmed = newShortIdValue.trim();
+
+        if (!trimmed || trimmed === shortId) {
+            setEditingId(false);
+            return;
+        }
+
+        setRenaming(true);
+        setRenameError('');
+        try {
+            const { id } = await renameLink(shortId, trimmed);
+            setEditingId(false);
+            navigate(`/stats/${id}`, { replace: true });
+        } catch (err) {
+            setRenameError(err.message);
+        } finally {
+            setRenaming(false);
+        }
+    }
+
     const bars = summary?.dailyBuckets || [];
     const maxCount = Math.max(1, ...bars.map((b) => b.count));
 
@@ -100,7 +138,46 @@ export default function Stats() {
             <div className="stats-header">
                 <div>
                     <span className="eyebrow">Ticket activity</span>
-                    {shortId && <h1>{shortId}</h1>}
+
+                    {shortId && !editingId && (
+                        <h1 className="shortid-display">
+                            {shortId}
+                            <button
+                                type="button"
+                                className="icon-btn-inline"
+                                onClick={startEditingId}
+                                aria-label="Edit short link"
+                            >
+                                <PencilIcon />
+                            </button>
+                        </h1>
+                    )}
+
+                    {shortId && editingId && (
+                        <form className="shortid-edit-form" onSubmit={submitRename}>
+                            <input
+                                type="text"
+                                value={newShortIdValue}
+                                onChange={(e) => setNewShortIdValue(e.target.value)}
+                                aria-label="Custom short link"
+                                autoFocus
+                                disabled={renaming}
+                                maxLength={20}
+                            />
+                            <button type="submit" className="btn" disabled={renaming}>
+                                {renaming ? 'Saving…' : 'Save'}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={cancelEditingId}
+                                disabled={renaming}
+                            >
+                                Cancel
+                            </button>
+                        </form>
+                    )}
+                    {editingId && renameError && <div className="form-error">{renameError}</div>}
                 </div>
             </div>
 
@@ -247,10 +324,41 @@ function TrashIcon() {
 
 function AlertIcon() {
     return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C82C28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-alert-icon lucide-circle-alert">
+        <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="16" 
+            height="16" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="#C82C28" 
+            stroke-width="2" 
+            stroke-linecap="round" 
+            stroke-linejoin="round" 
+            class="lucide lucide-circle-alert-icon lucide-circle-alert"
+        >
             <circle cx="12" cy="12" r="10"/>
             <line x1="12" x2="12" y1="8" y2="12"/>
             <line x1="12" x2="12.01" y1="16" y2="16"/>
         </svg>
     )
+}
+
+function PencilIcon() {
+    return (
+        <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="28" 
+            height="28" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            stroke-width="2" 
+            stroke-linecap="round" 
+            stroke-linejoin="round" 
+            class="lucide lucide-square-pen-icon lucide-square-pen"
+        >
+            <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>
+        </svg>
+    );
 }

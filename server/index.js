@@ -80,7 +80,7 @@ async function main() {
                 }
                 return callback(new Error('Not allowed by CORS'));
             },
-            methods: ['GET', 'POST', 'DELETE'],
+            methods: ['GET', 'POST', 'PATCH', 'DELETE'],
             credentials: true,
         })
     );

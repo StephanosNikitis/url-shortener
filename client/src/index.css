@@ -447,6 +447,56 @@ main {
   word-break: break-all;
 }
 
+.shortid-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon-btn-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.icon-btn-inline:hover {
+  color: var(--stamp);
+  border-color: var(--stamp);
+  background: var(--stamp-soft);
+}
+
+.shortid-edit-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.shortid-edit-form input {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  padding: 8px 12px;
+  background: var(--paper-raised);
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  color: var(--ink);
+  min-width: 200px;
+}
+
+.shortid-edit-form .btn {
+  padding: 9px 16px;
+  font-size: 0.82rem;
+}
+
 .stats-lookup {
   display: flex;
   gap: 8px;

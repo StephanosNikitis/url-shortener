@@ -80,6 +80,22 @@ export async function deleteLink(shortId) {
     }
 }
 
+export async function renameLink(currentShortId, newShortId) {
+    try {
+        const res = await fetchWithTimeout(`${API_BASE}/${encodeURIComponent(currentShortId)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shortId: newShortId }),
+        });
+        return parseResponse(res);
+    } catch (err) {
+        if (err instanceof TypeError) {
+            throw new Error('Renaming failed. The server could not be reached.', {cause: err});
+        }
+        throw err;
+    }
+}
+
 export function shortUrlFor(shortId) {
     return `${API_BASE}/${shortId}`;
 }

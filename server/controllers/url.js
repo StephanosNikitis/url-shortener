@@ -1,7 +1,7 @@
 const { nanoid } = require('nanoid');
 const URL = require('../models/url');
 const Visit = require('../models/visit');
-const { shortenSchema } = require('../validators/url');
+const { shortenSchema, renameSchema } = require('../validators/url');
 const { isSafeUrl } = require('../utils/validateUrl');
 const urlCache = require('../utils/urlCache');
 const logger = require('../config/logger');
@@ -175,10 +175,60 @@ async function handleDeleteUrl(req, res) {
     return res.json({ success: true });
 }
 
+async function handleRenameShortUrl(req, res) {
+    const { shortId: currentShortId } = req.params;
+
+    const parseResult = renameSchema.safeParse(req.body);
+    if (!parseResult.success) {
+        return res.status(400).json({ error: parseResult.error.errors[0].message });
+    }
+
+    const { shortId: newShortId } = parseResult.data;
+
+    if (newShortId === currentShortId) {
+        return res.status(400).json({ error: 'The new short link must be different from the current one' });
+    }
+
+    const url = await URL.findOne({ shortId: currentShortId, ownerId: req.user.id });
+    if (!url) {
+        return res.status(404).json({ error: 'Short URL not found' });
+    }
+    const conflict = await URL.findOne({ shortId: newShortId });
+    if (conflict) {
+        return res.status(409).json({ error: 'The short link is already taken' });
+    }
+
+    url.shortId = newShortId;
+    try {
+        await url.save();
+    } catch (err) {
+        if (err.code === 11000) {
+            // TOCTOU race: someone else grabbed newShortId between our check above and this save. The unique index is the real guarantee, the findOne above is just a fast, friendly pre-check.
+            return res.status(409).json({ error: 'That short link is already taken' });
+        }
+        throw err;
+    }
+
+    try {
+        await Visit.updateMany({ shortId: currentShortId }, { $set: { shortId: newShortId } });
+    } catch (err) {
+        logger.error(
+            { err, currentShortId, newShortId },
+            'Renamed URL but failed to migrate its visit history - old visits are now orphaned'
+        );
+    }
+
+    urlCache.delete(currentShortId);
+    urlCache.set(newShortId, url.redirectUrl);
+
+    return res.json({ id: newShortId });
+}
+
 module.exports = {
     handleGenerateShortUrl,
     handleGetAnalytics,
     handleRedirect,
     handleListMyLinks,
     handleDeleteUrl,
+    handleRenameShortUrl,
 };
