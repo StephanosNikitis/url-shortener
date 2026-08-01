@@ -523,6 +523,51 @@ main {
   position: relative;
 }
 
+.active-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.status-badge {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+}
+
+.status-badge.active {
+  color: var(--stamp);
+  background: var(--stamp-soft);
+}
+
+.status-badge.inactive {
+  color: var(--cancel);
+  background: var(--cancel-soft);
+}
+
+.active-toggle-row .btn {
+  padding: 8px 14px;
+  font-size: 0.8rem;
+}
+
+.deactivated-banner {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--cancel);
+  background: var(--cancel-soft);
+  border: 1px solid var(--cancel);
+  border-radius: 4px;
+}
+
 .card-icon-btn {
   position: absolute;
   top: 16px;
@@ -565,17 +610,6 @@ main {
   z-index: 30;
 }
 
-.confirm-deletion {
-  display: flex;
-  align-items: center;
-  height: 2.5rem;
-  gap: 5px;
-}
-
-.confirm-deletion p {
-  font-weight: 800;
-}
-
 .delete-popover-text {
   margin: 0 0 14px;
   font-size: 0.85rem;
@@ -598,6 +632,17 @@ main {
   margin-top: 12px;
 }
 
+.confirm-deletion {
+  display: flex;
+  align-items: center;
+  height: 2.5rem;
+  gap: 5px;
+}
+
+.confirm-deletion p {
+  font-weight: 800;
+}
+
 .big-number {
   font-family: var(--display);
   font-size: clamp(2.6rem, 8vw, 3.6rem);
@@ -613,6 +658,26 @@ main {
   text-transform: uppercase;
   color: var(--muted);
   margin-top: 8px;
+}
+
+.live-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--stamp);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
 }
 
 .chart-card {
@@ -678,6 +743,9 @@ main {
   text-transform: uppercase;
   color: var(--muted);
   padding: 18px 24px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .visit-row {

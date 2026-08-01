@@ -19,4 +19,8 @@ const renameSchema = z.object({
         }),
 });
 
-module.exports = { shortenSchema, renameSchema };
+const activeStatusSchema = z.object({
+    isActive: z.boolean(),
+});
+
+module.exports = { shortenSchema, renameSchema, activeStatusSchema };

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getAnalytics, deleteLink, renameLink, shortUrlFor } from '../api.js';
+import { getAnalytics, deleteLink, renameLink, setLinkActive, shortUrlFor } from '../api.js';
 
 function formatDayLabel(isoDate) {
     return new Date(isoDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -29,6 +29,9 @@ export default function Stats() {
     const [renaming, setRenaming] = useState(false);
     const [renameError, setRenameError] = useState('');
 
+    const [togglingActive, setTogglingActive] = useState(false);
+    const [toggleError, setToggleError] = useState('');
+
     useEffect(() => {
         if (!shortId) {
             setSummary(null);
@@ -44,7 +47,7 @@ export default function Stats() {
         getAnalytics(shortId)
             .then((result) => {
                 if (cancelled) return;
-                setSummary({ totalClicks: result.totalClicks, dailyBuckets: result.dailyBuckets });
+                setSummary({ totalClicks: result.totalClicks, dailyBuckets: result.dailyBuckets, isActive: result.isActive });
                 setVisits(result.visits);
                 setNextCursor(result.nextCursor);
             })
@@ -75,7 +78,7 @@ export default function Stats() {
             try {
                 if (cancelled) return;
                 const result = await getAnalytics(shortId);
-                setSummary({ totalClicks: result.totalClicks, dailyBuckets: result.dailyBuckets });
+                setSummary({ totalClicks: result.totalClicks, dailyBuckets: result.dailyBuckets, isActive: result.isActive });
                 setVisits((prev) => {
                     const newestKnown = prev[0]?.timestamp;
                     const freshOnes = newestKnown ? result.visits.filter((v) => v.timestamp > newestKnown) : result.visits;
@@ -166,6 +169,19 @@ export default function Stats() {
             setRenameError(err.message);
         } finally {
             setRenaming(false);
+        }
+    }
+
+    async function toggleActive() {
+        setTogglingActive(true);
+        setToggleError('');
+        try {
+            const result = await setLinkActive(shortId, !summary.isActive);
+            setSummary((prev) => ({ ...prev, isActive: result.isActive }));
+        } catch (err) {
+            setToggleError(err.message);
+        } finally {
+            setTogglingActive(false);
         }
     }
 
@@ -295,6 +311,32 @@ export default function Stats() {
                         <div className="status-line" style={{ marginTop: 16 }}>
                             Redirects to {shortUrlFor(shortId)}
                         </div>
+
+                        <div className="active-toggle-row">
+                            <span className={summary.isActive ? 'status-badge active' : 'status-badge inactive'}>
+                                {summary.isActive ? 'Active' : 'Deactivated' }
+                            </span>
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={toggleActive}
+                                disabled={togglingActive}
+                            >
+                                {togglingActive
+                                    ? 'Saving…'
+                                    : summary.isActive
+                                      ? 'Deactivate Link'
+                                      : 'Reactivate Link'}
+                            </button>
+                        </div>
+                        {toggleError && <div className="form-error" style={{ marginTop: 10 }}>{toggleError}</div>}
+
+                        {!summary.isActive && (
+                            <p className="deactivated-banner">
+                                This link is deactivated. Anyone who visits it gets a 403 instead of
+                                being redirected. Reactivate it any time to restore access.
+                            </p>
+                        )}
                     </div>
 
                     {bars.length > 0 && (
@@ -318,6 +360,7 @@ export default function Stats() {
                     <div className="visit-log">
                         <div className="visit-log-title">
                             Recent redemptions
+                            <span className="live-dot" title="Updates automatically" aria-hidden="true" />
                         </div>
                         {visits.length === 0 ? (
                             <div className="empty-state">No redemptions yet. Share the link to see activity here.</div>

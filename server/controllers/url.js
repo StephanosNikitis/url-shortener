@@ -1,11 +1,10 @@
 const { nanoid } = require('nanoid');
 const URL = require('../models/url');
 const Visit = require('../models/visit');
-const { shortenSchema, renameSchema } = require('../validators/url');
+const { shortenSchema, renameSchema, activeStatusSchema } = require('../validators/url');
 const { isSafeUrl } = require('../utils/validateUrl');
 const urlCache = require('../utils/urlCache');
 const logger = require('../config/logger');
-const { success } = require('zod');
 
 const MAX_ANALYTICS_LIMIT = 100;
 const DEFAULT_ANALYTICS_LIMIT = 25;
@@ -70,7 +69,7 @@ async function handleGetAnalytics(req, res) {
         return res.status(400).json({ error: 'Invalid "before" cursor' });
     }
 
-    const result = await URL.findOne({ shortId }).select('ownerId clickCount');
+    const result = await URL.findOne({ shortId }).select('ownerId clickCount isActive');
     if (!result) {
         return res.status(404).json({ error: 'Short URL not found' });
     }
@@ -111,6 +110,7 @@ async function handleGetAnalytics(req, res) {
 
     return res.json({
         totalClicks: result.clickCount || 0,
+        isActive: result.isActive,
         dailyBuckets,
         visits,
         nextCursor,
@@ -129,20 +129,28 @@ function logVisitAsync(shortId) {
 async function handleRedirect(req, res) {
     const { shortId } = req.params;
 
-    const cacheUrl = urlCache.get(shortId);
-    if (cacheUrl) {
-        res.redirect(cacheUrl);
+    const cached = urlCache.get(shortId);
+    if (cached) {
+        if (!cached.isActive) {
+            return res.status(403).json({ error: 'This link has been deactivated by its owner.' });
+        }
+        res.redirect(cached.redirectUrl);
         if (!isPrefetchRequest(req)) {
             logVisitAsync(shortId);
         }
         return;
     }
 
-    const url = await URL.findOne({ shortId }).select('redirectUrl');
+    const url = await URL.findOne({ shortId }).select('redirectUrl isActive');
 
     if (!url) return res.status(404).json({ error: 'Short URL not found' });
 
-    urlCache.set(shortId, url.redirectUrl);
+    urlCache.set(shortId, { redirectUrl: url.redirectUrl, isActive: url.isActive });
+
+    if (!url.isActive) {
+        return res.status(403).json({ error: 'This link has been deactivated by its owner.' });
+    }
+
     res.redirect(url.redirectUrl);
     if (!isPrefetchRequest(req)) {
         logVisitAsync(shortId);
@@ -152,7 +160,7 @@ async function handleRedirect(req, res) {
 async function handleListMyLinks(req, res) {
     const links = await URL.find({ ownerId: req.user.id })
         .sort({ createdAt: -1 })
-        .select('shortId redirectUrl createdAt clickCount');
+        .select('shortId redirectUrl createdAt clickCount isActive');
 
     return res.json({
         links: links.map((link) => ({
@@ -160,6 +168,7 @@ async function handleListMyLinks(req, res) {
             redirectUrl: link.redirectUrl,
             createdAt: link.createdAt,
             totalClicks: link.clickCount || 0,
+            isActive: link.isActive,
         })),
     });
 }
@@ -228,9 +237,34 @@ async function handleRenameShortUrl(req, res) {
     }
 
     urlCache.delete(currentShortId);
-    urlCache.set(newShortId, url.redirectUrl);
+    urlCache.set(newShortId, { redirectUrl: url.redirectUrl, isActive: url.isActive });
 
     return res.json({ id: newShortId });
+}
+
+async function handleSetActiveStatus(req, res) {
+    const { shortId } = req.params;
+
+    const parseResult = activeStatusSchema.safeParse(req.body);
+    if (!parseResult.success) {
+        return res.status(400).json({ error: parseResult.error.errors[0].message });
+    }
+
+    const { isActive } = parseResult.data;
+
+    const url = await URL.findOneAndUpdate(
+        { shortId, ownerId: req.user.id },
+        { $set: { isActive } },
+        { new: true }
+    );
+
+    if (!url) {
+        return res.status(404).json({ error: 'Short URL not found' });
+    }
+
+    urlCache.set(shortId, { redirectUrl: url.redirectUrl, isActive: url.isActive });
+
+    return res.json({ shortId: url.shortId, isActive: url.isActive });
 }
 
 module.exports = {
@@ -240,4 +274,5 @@ module.exports = {
     handleListMyLinks,
     handleDeleteUrl,
     handleRenameShortUrl,
+    handleSetActiveStatus,
 };

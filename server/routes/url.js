@@ -5,6 +5,7 @@ const {
     handleRedirect, 
     handleListMyLinks, 
     handleRenameShortUrl,
+    handleSetActiveStatus,
     handleDeleteUrl 
 } = require('../controllers/url');
 const { shortenLimiter, redirectLimiter } = require('../middleware/rateLimiter');
@@ -20,6 +21,8 @@ router.get('/analytics/:shortId', ensureAuthenticated, asyncHandler(handleGetAna
 router.get('/links', ensureAuthenticated, asyncHandler(handleListMyLinks));
 
 router.patch('/:shortId', ensureAuthenticated, shortenLimiter, asyncHandler(handleRenameShortUrl));
+
+router.patch('/:shortId/status', ensureAuthenticated, shortenLimiter, asyncHandler(handleSetActiveStatus));
 
 router.get('/:shortId', redirectLimiter, asyncHandler(handleRedirect));
 

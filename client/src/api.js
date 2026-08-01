@@ -96,6 +96,22 @@ export async function renameLink(currentShortId, newShortId) {
     }
 }
 
+export async function setLinkActive(shortId, isActive) {
+    try {
+        const res = await fetchWithTimeout(`${API_BASE}/${encodeURIComponent(shortId)}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isActive }),
+        });
+        return parseResponse(res);
+    } catch (err) {
+        if (err instanceof TypeError) {
+            throw new Error('Failed to update link status. The server could not be reached.', {cause: err});
+        }
+        throw err;
+    }
+}
+
 export function shortUrlFor(shortId) {
     return `${API_BASE}/${shortId}`;
 }

@@ -65,7 +65,10 @@ export default function MyLinks() {
                             }}
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                                <span style={{ color: 'var(--stamp)' }}>{shortUrlFor(link.shortId)}</span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ color: 'var(--stamp)' }}>{shortUrlFor(link.shortId)}</span>
+                                    {!link.isActive && <span className='status-badge inactive'>Deactivated</span> }
+                                </span>
                                 <span className="visit-index">{link.totalClicks} click{link.totalClicks !== 1 && 's'}</span>
                             </div>
                             <span style={{ fontSize: '0.78rem', color: 'var(--muted)', wordBreak: 'break-all' }}>
