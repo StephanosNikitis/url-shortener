@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute.jsx';
 import AvatarMenu from './components/AvatarMenu.jsx';
 import { AuthProvider } from './context/AuthProvider.jsx';
 import { useAuth } from './hooks/useAuth.js';
+import ticketIcon from '../assets/ticket-icon.png';
 
 function Topbar() {
     const { user } = useAuth();
@@ -14,7 +15,7 @@ function Topbar() {
     return (
         <header className="topbar">
             <Link to="/" className="brand">
-                <span className="brand-mark" aria-hidden="true" />
+                <img src={ticketIcon} alt="" height={30} width={30} className="brand-mark" aria-hidden="true" />
                 Ticketify
             </Link>
 
@@ -75,6 +76,10 @@ export default function App() {
                         />
                     </Routes>
                 </main>
+
+                <footer className="footer">
+                    <a target="_blank" rel="noopener noreferrer" href="https://icons8.com/icon/81972/ticket">Ticket</a> icon by <a target="_blank" rel="noopener noreferrer" href="https://icons8.com">Icons8</a>
+                </footer>
             </div>
         </AuthProvider>
     );

@@ -75,21 +75,13 @@ input:focus-visible {
   text-decoration: none;
 }
 
-.brand-mark {
-  width: 26px;
-  height: 26px;
-  border: 2px solid var(--ink);
-  border-radius: 50%;
-  position: relative;
-  flex-shrink: 0;
-}
-
-.brand-mark::after {
-  content: '';
-  position: absolute;
-  inset: 6px;
-  border-radius: 50%;
-  background: var(--stamp);
+.footer {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 20px clamp(16px, 5vw, 64px);
 }
 
 .topbar-right {
