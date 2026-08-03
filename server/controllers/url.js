@@ -3,6 +3,7 @@ const URL = require('../models/url');
 const Visit = require('../models/visit');
 const { shortenSchema, renameSchema, activeStatusSchema } = require('../validators/url');
 const { isSafeUrl } = require('../utils/validateUrl');
+const { checkUrlSafety } = require('../utils/safeBrowsing');
 const urlCache = require('../utils/urlCache');
 const logger = require('../config/logger');
 
@@ -25,6 +26,13 @@ async function handleGenerateShortUrl(req, res) {
 
     if (!(await isSafeUrl(originalUrl))) {
         return res.status(400).json({ error: 'Invalid or disallowed URL' });
+    }
+
+    const safetyResult = await checkUrlSafety(originalUrl);
+    if (safetyResult.flagged) {
+        return res.status(400).json({
+            error: 'This URL has been flagged as unsafe and cannot be shortened.',
+        });
     }
 
     const existing = await URL.findOne({ redirectUrl: originalUrl, ownerId });
