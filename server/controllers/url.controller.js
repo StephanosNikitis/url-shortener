@@ -1,11 +1,11 @@
-const { nanoid } = require('nanoid');
-const URL = require('../models/url');
-const Visit = require('../models/visit');
-const { shortenSchema, renameSchema, activeStatusSchema } = require('../validators/url');
-const { isSafeUrl } = require('../utils/validateUrl');
-const { checkUrlSafety } = require('../utils/safeBrowsing');
-const urlCache = require('../utils/urlCache');
-const logger = require('../config/logger');
+import { nanoid } from 'nanoid';
+import URL from '../models/url.model.js';
+import Visit from '../models/visit.model.js';
+import { shortenSchema, renameSchema, activeStatusSchema } from '../validators/url.validator.js';
+import isSafeUrl from '../utils/validateUrl.js';
+import checkUrlSafety from '../utils/safeBrowsing.js';
+import urlCache from '../utils/urlCache.js';
+import logger from '../config/logger.js';
 
 const MAX_ANALYTICS_LIMIT = 100;
 const DEFAULT_ANALYTICS_LIMIT = 25;
@@ -16,7 +16,7 @@ function isPrefetchRequest(req) {
     return purpose.includes('prefetch') || purpose.includes('preview');
 }
 
-async function handleGenerateShortUrl(req, res) {
+export async function handleGenerateShortUrl(req, res) {
     const parseResult = shortenSchema.safeParse(req.body);
     if (!parseResult.success) {
         return res.status(400).json({ error: parseResult.error.errors[0].message });
@@ -42,11 +42,11 @@ async function handleGenerateShortUrl(req, res) {
 
     try {
         await URL.create({
-            shortId: shortId,
+            shortId,
             redirectUrl: originalUrl,
             ownerId,
         });
-    
+
         return res.json({ id: shortId });
     } catch (err) {
         if (err.code === 11000) {
@@ -63,7 +63,7 @@ async function handleGenerateShortUrl(req, res) {
     }
 }
 
-async function handleGetAnalytics(req, res) {
+export async function handleGetAnalytics(req, res) {
     const { shortId } = req.params;
 
     // clamp limit so a client can't request an unbounded page size
@@ -131,10 +131,10 @@ function logVisitAsync(shortId) {
         URL.updateOne({ shortId }, { $inc: { clickCount: 1 } }),
     ]).catch((err) => {
         logger.error({ err, shortId }, 'Failed to log visit');
-    })
+    });
 }
 
-async function handleRedirect(req, res) {
+export async function handleRedirect(req, res) {
     const { shortId } = req.params;
 
     const cached = urlCache.get(shortId);
@@ -165,7 +165,7 @@ async function handleRedirect(req, res) {
     }
 }
 
-async function handleListMyLinks(req, res) {
+export async function handleListMyLinks(req, res) {
     const links = await URL.find({ ownerId: req.user.id })
         .sort({ createdAt: -1 })
         .select('shortId redirectUrl createdAt clickCount isActive');
@@ -181,7 +181,7 @@ async function handleListMyLinks(req, res) {
     });
 }
 
-async function handleDeleteUrl(req, res) {
+export async function handleDeleteUrl(req, res) {
     const { shortId } = req.params;
 
     const deletedDoc = await URL.findOneAndDelete({ shortId, ownerId: req.user.id });
@@ -201,7 +201,7 @@ async function handleDeleteUrl(req, res) {
     return res.json({ success: true });
 }
 
-async function handleRenameShortUrl(req, res) {
+export async function handleRenameShortUrl(req, res) {
     const { shortId: currentShortId } = req.params;
 
     const parseResult = renameSchema.safeParse(req.body);
@@ -250,7 +250,7 @@ async function handleRenameShortUrl(req, res) {
     return res.json({ id: newShortId });
 }
 
-async function handleSetActiveStatus(req, res) {
+export async function handleSetActiveStatus(req, res) {
     const { shortId } = req.params;
 
     const parseResult = activeStatusSchema.safeParse(req.body);
@@ -274,13 +274,3 @@ async function handleSetActiveStatus(req, res) {
 
     return res.json({ shortId: url.shortId, isActive: url.isActive });
 }
-
-module.exports = {
-    handleGenerateShortUrl,
-    handleGetAnalytics,
-    handleRedirect,
-    handleListMyLinks,
-    handleDeleteUrl,
-    handleRenameShortUrl,
-    handleSetActiveStatus,
-};

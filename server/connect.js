@@ -1,5 +1,5 @@
-const mongoose = require('mongoose'); 
-const logger = require('./config/logger');
+import mongoose from 'mongoose';
+import logger from './config/logger.js';
 
 mongoose.connection.on('error', (err) => {
     logger.error({ err }, 'MongoDB connection error');
@@ -20,6 +20,4 @@ async function connectToMongoDB(url) {
     });
 }
 
-module.exports = {
-    connectToMongoDB,
-};
+export default connectToMongoDB;

@@ -1,13 +1,11 @@
-const express = require('express');
-const passport = require('passport');
+import express from 'express';
+import passport from 'passport';
+
 const router = express.Router();
 
 const FRONTEND_URL = process.env.FRONTEND_URL;
 
-router.get(
-    '/google',
-    passport.authenticate('google', { scope: ['profile', 'email'] })
-);
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 router.get(
     '/google/callback',
@@ -21,4 +19,4 @@ router.get(
     }
 );
 
-module.exports = router;
+export default router;

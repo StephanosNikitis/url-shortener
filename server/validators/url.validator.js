@@ -1,4 +1,4 @@
-const { z } = require('zod');
+import { z } from 'zod';
 
 const shortenSchema = z.object({
     originalUrl: z.string().trim().min(1).max(2048), // cap length — prevents abuse via giant strings
@@ -23,4 +23,4 @@ const activeStatusSchema = z.object({
     isActive: z.boolean(),
 });
 
-module.exports = { shortenSchema, renameSchema, activeStatusSchema };
+export { shortenSchema, renameSchema, activeStatusSchema };

@@ -1,21 +1,23 @@
-require('dotenv').config();
-require('./config/validateEnv')();
-const express = require('express');
-const helmet = require('helmet');
-const cors = require('cors');
-const mongoose = require('mongoose');
-const pinoHttp = require('pino-http');
-const session = require('express-session');
-const { MongoStore } = require('connect-mongo');
+import 'dotenv/config';
+import validateEnv from './config/validateEnv.js';
+validateEnv();
 
-const logger = require('./config/logger');
-const { connectToMongoDB } = require('./connect');
-const passport = require('./config/passport');
-const urlRoute = require('./routes/url');
-const authRoutes = require('./routes/auth');
-const oauthRoutes = require('./routes/oauth');
-const errorHandler = require('./middleware/errorHandler');
-const Visit = require('./models/visit');
+import express from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import mongoose from 'mongoose';
+import pinoHttp from 'pino-http';
+import session from 'express-session';
+import { MongoStore } from 'connect-mongo';
+
+import logger from './config/logger.js';
+import connectToMongoDB from './connect.js';
+import passport from './config/passport.js';
+import urlRoute from './routes/url.routes.js';
+import authRoutes from './routes/auth.routes.js';
+import oauthRoutes from './routes/oauth.routes.js';
+import errorHandler from './middleware/errorHandler.js';
+import Visit from './models/visit.model.js';
 
 const PORT = process.env.PORT || 5000;
 
@@ -61,7 +63,7 @@ async function main() {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+                maxAge: 7 * 24 * 60 * 60 * 1000,
             },
         })
     );

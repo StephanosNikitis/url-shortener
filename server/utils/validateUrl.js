@@ -1,7 +1,7 @@
-const validUrl = require('valid-url');
-const { URL } = require('url');
-const dns = require('dns').promises;
-const net = require('net');
+import validUrl from 'valid-url';
+import { URL as NodeURL } from 'node:url';
+import { promises as dns } from 'node:dns';
+import net from 'node:net';
 
 const BLOCKED_HOSTNAMES = ['localhost', '0.0.0.0'];
 
@@ -24,10 +24,10 @@ function isPrivateIp(ip) {
 }
 
 async function isSafeUrl(rawUrl) {
-    if (!validUrl.isWebUri(rawUrl)) return false; // requires http(s) scheme specifically
+    if (!validUrl.isWebUri(rawUrl)) return false;
     let parsed;
     try {
-        parsed = new URL(rawUrl);
+        parsed = new NodeURL(rawUrl);
     } catch (error) {
         return false;
     }
@@ -52,4 +52,4 @@ async function isSafeUrl(rawUrl) {
     return true;
 }
 
-module.exports = { isSafeUrl };
+export default isSafeUrl;

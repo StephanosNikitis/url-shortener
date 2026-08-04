@@ -7,4 +7,4 @@ function ensureAuthenticated(req, res, next) {
     return res.status(401).json({ error: 'Authentication required' });
 }
 
-module.exports = ensureAuthenticated;
+export default ensureAuthenticated;

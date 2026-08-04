@@ -1,4 +1,4 @@
-const logger = require('../config/logger');
+import logger from '../config/logger.js';
 
 const SAFE_BROWSING_URL = 'https://safebrowsing.googleapis.com/v4/threatMatches:find';
 const CHECK_TIMEOUT_MS = 3000;
@@ -55,4 +55,4 @@ async function checkUrlSafety(targetUrl) {
     }
 }
 
-module.exports = { checkUrlSafety };
+export default checkUrlSafety;

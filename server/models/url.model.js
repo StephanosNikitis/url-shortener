@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const urlSchema = new mongoose.Schema(
     {
@@ -28,7 +28,7 @@ const urlSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
         },
-    }, 
+    },
     { timestamps: true }
 );
 
@@ -36,4 +36,4 @@ urlSchema.index({ redirectUrl: 1, ownerId: 1 });
 
 const URL = mongoose.model('URL', urlSchema);
 
-module.exports = URL;
+export default URL;

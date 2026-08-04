@@ -1,4 +1,5 @@
-const express = require('express');
+import express from 'express';
+
 const router = express.Router();
 
 router.get('/me', (req, res) => {
@@ -26,4 +27,4 @@ router.post('/logout', (req, res, next) => {
     });
 });
 
-module.exports = router;
+export default router;

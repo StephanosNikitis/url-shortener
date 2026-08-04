@@ -1,11 +1,11 @@
 function validateEnv() {
     const required = [
-        'MONGO_URI', 
-        'PORT', 
-        'SESSION_SECRET', 
-        'GOOGLE_CLIENT_ID', 
-        'GOOGLE_CLIENT_SECRET', 
-        'GOOGLE_CALLBACK_URL', 
+        'MONGO_URI',
+        'PORT',
+        'SESSION_SECRET',
+        'GOOGLE_CLIENT_ID',
+        'GOOGLE_CLIENT_SECRET',
+        'GOOGLE_CALLBACK_URL',
         'FRONTEND_URL',
     ];
     const missing = required.filter((key) => !process.env[key]);
@@ -20,4 +20,4 @@ function validateEnv() {
     }
 }
 
-module.exports = validateEnv;
+export default validateEnv;

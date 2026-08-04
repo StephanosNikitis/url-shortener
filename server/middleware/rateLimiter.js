@@ -1,4 +1,4 @@
-const rateLimit = require('express-rate-limit');
+import rateLimit from 'express-rate-limit';
 
 const shortenLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -17,7 +17,4 @@ const redirectLimiter = rateLimit({
     message: { error: 'Too many requests, please slow down.' },
 });
 
-module.exports = { 
-    shortenLimiter, 
-    redirectLimiter,
-};
+export { shortenLimiter, redirectLimiter };
