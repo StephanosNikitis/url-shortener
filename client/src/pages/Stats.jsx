@@ -217,6 +217,7 @@ export default function Stats() {
                                 aria-label="Custom short link"
                                 autoFocus
                                 disabled={renaming}
+                                minLength={3}
                                 maxLength={20}
                             />
                             <button type="submit" className="btn" disabled={renaming}>
