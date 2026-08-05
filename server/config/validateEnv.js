@@ -13,11 +13,6 @@ function validateEnv() {
         console.error(`Missing required environment variables: ${missing.join(', ')}`);
         process.exit(1);
     }
-
-    if (!/^https?:\/\//.test(process.env.BASE_URL)) {
-        console.error('BASE_URL must start with http:// or https://');
-        process.exit(1);
-    }
 }
 
 export default validateEnv;

@@ -10,11 +10,12 @@ import {
 } from '../controllers/url.controller.js';
 import { shortenLimiter, redirectLimiter } from '../middleware/rateLimiter.js';
 import ensureAuthenticated from '../middleware/ensureAuthenticated.js';
+import arcjetBotProtection from '../middleware/arcjetBotProtection.js';
 import asyncHandler from '../utils/asyncHandler.js';
 
 const router = express.Router();
 
-router.post('/', ensureAuthenticated, shortenLimiter, asyncHandler(handleGenerateShortUrl));
+router.post('/', arcjetBotProtection, ensureAuthenticated, shortenLimiter, asyncHandler(handleGenerateShortUrl));
 router.get('/analytics/:shortId', ensureAuthenticated, asyncHandler(handleGetAnalytics));
 router.get('/links', ensureAuthenticated, asyncHandler(handleListMyLinks));
 router.patch('/:shortId', ensureAuthenticated, shortenLimiter, asyncHandler(handleRenameShortUrl));
