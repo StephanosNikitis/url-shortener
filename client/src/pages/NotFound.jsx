@@ -2,16 +2,19 @@ import { Link } from 'react-router-dom';
 
 export default function NotFound() {
     return (
-        <div className="hero">
-            <span className="eyebrow">404</span>
-            <h1>Page Not Found</h1>
+        <div className="not-found">
+            <img src='../../assets/404-not-found.webp' alt='page not found' />
+            <h1>Sorry, this path is a dead end.</h1>
+            <h1>We couldn't find the page you are looking for.</h1>
             <p>
-                The page you're looking for isn't here - it may have been moved, deleted, or the link was never right to begin with.
+                Perhaps the link is broken, or the page has been moved or deleted.
             </p>
 
-            <Link to="/" className="btn">
-                Back to home
-            </Link>
+            <div className='back-home-btn'>
+                <Link to="/" className="btn">
+                    Back to home
+                </Link>
+            </div>
         </div>
     );
 }
