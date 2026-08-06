@@ -11,6 +11,18 @@ const visitSchema = new mongoose.Schema(
             required: true,
             default: Date.now,
         },
+        referrerHost: {
+            type: String,
+            default: 'Direct',
+        },
+        deviceBucket: {
+            type: String,
+            default: 'Bot/Other',
+        },
+        browserBucket: {
+            type: String,
+            default: 'Bot/Other',
+        },
     },
     {
         timeseries: {

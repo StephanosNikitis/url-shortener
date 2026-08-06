@@ -5,11 +5,23 @@ import { shortenSchema, renameSchema, activeStatusSchema } from '../validators/u
 import isSafeUrl from '../utils/validateUrl.js';
 import checkUrlSafety from '../utils/safeBrowsing.js';
 import urlCache from '../utils/urlCache.js';
+import { bucketUserAgent } from '../utils/parseUserAgent.js';
+import { bucketReferrer } from '../utils/parseReferrer.js';
 import logger from '../config/logger.js';
 
 const MAX_ANALYTICS_LIMIT = 100;
 const DEFAULT_ANALYTICS_LIMIT = 25;
 const DAILY_BUCKET_WINDOW_DAYS = 14;
+const MAX_TOP_REFERRERS = 6;
+
+// Collapses a $group-by-count result down to the top N entries plus a single "Other" rollup for the remainder, so a link with dozens of distinct referrers doesn't produce a breakdown list nobody can actually read.
+function topNWithOther(buckets, n) {
+    const sorted = [...buckets].sort((a, b) => b.count - a.count);
+    const top = sorted.slice(0, n);
+    const rest = sorted.slice(n);
+    const otherCount = rest.reduce((sum, b) => sum + b.count, 0);
+    return otherCount > 0 ? [...top, { label: 'Other', count: otherCount }] : top;
+}
 
 function isPrefetchRequest(req) {
     const purpose = (req.headers['sec-purpose'] || req.headers['purpose'] || '').toLowerCase();
@@ -94,40 +106,68 @@ export async function handleGetAnalytics(req, res) {
     const page = await Visit.find(visitQuery)
         .sort({ timestamp: -1 })
         .limit(limit + 1) // fetch one extra to detect whether there's a next page
-        .select('timestamp -_id');
+        .select('timestamp referrerHost deviceBucket browserBucket -_id');
 
     const hasMore = page.length > limit;
-    const visits = page.slice(0, limit).map((v) => ({ timestamp: v.timestamp.getTime() }));
+    const visits = page.slice(0, limit).map((v) => ({ 
+        timestamp: v.timestamp.getTime(),
+        referrerHost: v.referrerHost || 'Direct',
+        deviceBucket: v.deviceBucket || 'Bot/Other',
+        browserBucket: v.browserBucket || 'Bot/Other',
+    }));
     const nextCursor = hasMore ? page[limit - 1].timestamp.toISOString() : null;
 
     const windowStart = new Date(Date.now() - DAILY_BUCKET_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-    const dailyBucketsRaw = await Visit.aggregate([
+    const [facets] = await Visit.aggregate([
         { $match: { shortId, timestamp: { $gte: windowStart } } },
         {
-            $group: {
-                _id: { $dateTrunc: { date: '$timestamp', unit: 'day' } },
-                count: { $sum: 1 },
+            $facet: {
+                dailyBuckets: [
+                    { $group: { _id: { $dateTrunc: { date: '$timestamp', unit: 'day' } }, count: { $sum: 1 } } },
+                    { $sort: { _id: 1 } },
+                ],
+                referrers: [
+                    { $group: { _id: { $ifNull: ['$referrerHost', 'Direct'] }, count: { $sum: 1 } } },
+                ],
+                devices: [
+                    { $group: { _id: { $ifNull: ['$deviceBucket', 'Bot/Other'] }, count: { $sum: 1 } } },
+                ],
+                browsers: [
+                    { $group: { _id: { $ifNull: ['$browserBucket', 'Bot/Other'] }, count: { $sum: 1 } } },
+                ],
             },
         },
-        { $sort: { _id: 1 } },
     ]);
-    const dailyBuckets = dailyBucketsRaw.map((b) => ({
+
+    const dailyBuckets = facets.dailyBuckets.map((b) => ({
         date: b._id.toISOString(),
         count: b.count,
     }));
+
+    const asLabelCount = (rows) => rows.map((r) => ({ label: r._id, count: r.count }));
+    const topReferrers = topNWithOther(asLabelCount(facets.referrers), MAX_TOP_REFERRERS);
+    const deviceBreakdown = asLabelCount(facets.devices).sort((a, b) => b.count - a.count);
+    const browserBreakdown = asLabelCount(facets.browsers).sort((a, b) => b.count - a.count);
 
     return res.json({
         totalClicks: result.clickCount || 0,
         isActive: result.isActive,
         dailyBuckets,
+        topReferrers,
+        deviceBreakdown,
+        browserBreakdown,
+        breakdownWindowDays: DAILY_BUCKET_WINDOW_DAYS,
         visits,
         nextCursor,
     });
 }
 
-function logVisitAsync(shortId) {
+function logVisitAsync(shortId, req) {
+    const referrerHost = bucketReferrer(req.get('Referrer'));
+    const { deviceBucket, browserBucket } = bucketUserAgent(req.headers['user-agent']);
+
     Promise.all([
-        Visit.create({ shortId, timestamp: new Date() }),
+        Visit.create({ shortId, timestamp: new Date(), referrerHost, deviceBucket, browserBucket }),
         URL.updateOne({ shortId }, { $inc: { clickCount: 1 } }),
     ]).catch((err) => {
         logger.error({ err, shortId }, 'Failed to log visit');
@@ -144,7 +184,7 @@ export async function handleRedirect(req, res) {
         }
         res.redirect(cached.redirectUrl);
         if (!isPrefetchRequest(req)) {
-            logVisitAsync(shortId);
+            logVisitAsync(shortId, req);
         }
         return;
     }
@@ -161,7 +201,7 @@ export async function handleRedirect(req, res) {
 
     res.redirect(url.redirectUrl);
     if (!isPrefetchRequest(req)) {
-        logVisitAsync(shortId);
+        logVisitAsync(shortId, req);
     }
 }
 

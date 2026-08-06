@@ -1,9 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAnalytics, deleteLink, renameLink, setLinkActive, shortUrlFor } from '../api.js';
+import BreakdownList from '../components/BreakdownList.jsx';
 
 function formatDayLabel(isoDate) {
     return new Date(isoDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function buildSummary(result) {
+    return {
+        totalClicks: result.totalClicks,
+        dailyBuckets: result.dailyBuckets,
+        isActive: result.isActive,
+        topReferrers: result.topReferrers,
+        deviceBreakdown: result.deviceBreakdown,
+        browserBreakdown: result.browserBreakdown,
+        breakdownWindowDays: result.breakdownWindowDays,
+    };
 }
 
 export default function Stats() {
@@ -47,7 +60,7 @@ export default function Stats() {
         getAnalytics(shortId)
             .then((result) => {
                 if (cancelled) return;
-                setSummary({ totalClicks: result.totalClicks, dailyBuckets: result.dailyBuckets, isActive: result.isActive });
+                setSummary(buildSummary(result));
                 setVisits(result.visits);
                 setNextCursor(result.nextCursor);
             })
@@ -78,7 +91,7 @@ export default function Stats() {
             try {
                 if (cancelled) return;
                 const result = await getAnalytics(shortId);
-                setSummary({ totalClicks: result.totalClicks, dailyBuckets: result.dailyBuckets, isActive: result.isActive });
+                setSummary(buildSummary(result));
                 setVisits((prev) => {
                     const newestKnown = prev[0]?.timestamp;
                     const freshOnes = newestKnown ? result.visits.filter((v) => v.timestamp > newestKnown) : result.visits;
@@ -187,6 +200,7 @@ export default function Stats() {
 
     const bars = summary?.dailyBuckets || [];
     const maxCount = Math.max(1, ...bars.map((b) => b.count));
+    const windowLabel = `last ${summary?.breakdownWindowDays ?? 14} days`;
 
     return (
         <div className="stats-page">
@@ -358,6 +372,27 @@ export default function Stats() {
                         </div>
                     )}
 
+                    {summary.topReferrers?.length > 0 && (
+                        <div className="chart-card">
+                            <div className="chart-title">Where redemptions came from ({windowLabel})</div>
+                            <BreakdownList items={summary.topReferrers} />
+                        </div>
+                    )}
+
+                    {(summary.deviceBreakdown?.length > 0 || summary.browserBreakdown?.length > 0) && (
+                        <div className="chart-card">
+                            <div className="chart-title">Devices &amp; browsers ({windowLabel})</div>
+                            <div className="breakdown-columns">
+                                <div className="breakdown-column">
+                                    <BreakdownList items={summary.deviceBreakdown || []} />
+                                </div>
+                                <div className="breakdown-column">
+                                    <BreakdownList items={summary.browserBreakdown || []} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="visit-log">
                         <div className="visit-log-title">
                             Recent redemptions
@@ -368,9 +403,18 @@ export default function Stats() {
                         ) : (
                             <>
                                 {visits.map((visit, i) => (
-                                    <div className="visit-row" key={visit.timestamp + '-' + i}>
-                                        <span className="visit-index">#{visits.length - i}</span>
-                                        <span>{new Date(visit.timestamp).toLocaleString()}</span>
+                                    <div
+                                        className="visit-row"
+                                        key={visit.timestamp + '-' + i}
+                                        style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                            <span className="visit-index">#{visits.length - i}</span>
+                                            <span>{new Date(visit.timestamp).toLocaleString()}</span>
+                                        </div>
+                                        <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
+                                            {visit.referrerHost} · {visit.deviceBucket} · {visit.browserBucket}
+                                        </span>
                                     </div>
                                 ))}
                                 {nextCursor && (
