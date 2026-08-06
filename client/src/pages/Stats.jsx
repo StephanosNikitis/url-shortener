@@ -23,8 +23,6 @@ export default function Stats() {
     const { shortId } = useParams();
     const navigate = useNavigate();
 
-    const [lookupValue, setLookupValue] = useState(shortId || '');
-
     const [summary, setSummary] = useState(null);
     const [visits, setVisits] = useState([]);
     const [nextCursor, setNextCursor] = useState(null);
@@ -119,12 +117,6 @@ export default function Stats() {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, [shortId]);
-
-    function handleLookup(e) {
-        e.preventDefault();
-        const trimmed = lookupValue.trim();
-        if (trimmed) navigate(`/stats/${trimmed}`);
-    }
 
     async function handleLoadMore() {
         if (!nextCursor) return;
@@ -250,19 +242,6 @@ export default function Stats() {
                     {editingId && renameError && <div className="form-error">{renameError}</div>}
                 </div>
             </div>
-
-            <form className="stats-lookup" onSubmit={handleLookup}>
-                <input
-                    type="text"
-                    placeholder="Enter a ticket code, e.g. aZ3kLmN9"
-                    value={lookupValue}
-                    onChange={(e) => setLookupValue(e.target.value)}
-                    aria-label="Short link code"
-                />
-                <button type="submit" className="btn">
-                    Look up
-                </button>
-            </form>
 
             {loading && <p className="status-line">Fetching activity…</p>}
             {error && <p className="status-line error">{error}</p>}
