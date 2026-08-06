@@ -424,7 +424,7 @@ main {
 
 .stats-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
