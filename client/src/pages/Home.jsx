@@ -52,6 +52,7 @@ export default function Home() {
                     value={originalUrl}
                     onChange={(e) => setOriginalUrl(e.target.value)}
                     aria-label="URL to shorten"
+                    disabled={loading}
                 />
                 <button type="submit" className="btn" disabled={loading}>
                     {loading ? 'Shortening…' : 'Shorten'}
