@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
+import notfoundImg from '../../assets/404-not-found.webp';
 
 export default function NotFound() {
     return (
         <div className="not-found">
-            <img src='../../assets/404-not-found.webp' alt='page not found' />
+            <img src={notfoundImg} alt='page not found' />
             <h1>Sorry, this path is a dead end.</h1>
             <h1>We couldn't find the page you are looking for.</h1>
             <p>
